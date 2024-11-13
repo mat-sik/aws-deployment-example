@@ -1,5 +1,6 @@
 package com.github.matsik.messages;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.SetArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
@@ -20,16 +21,8 @@ public class MessagesApplication {
     }
 
     @Bean
-    public CommandLineRunner commandLineRunner(StatefulRedisConnection<String, String> connection) {
-        return _ -> {
-            RedisCommands<String, String> commands = connection.sync();
-
-            commands.set("foo", "bar", SetArgs.Builder.ex(Duration.ofSeconds(10)));
-            String result = commands.get("foo");
-            System.out.println(result);
-
-            connection.close();
-        };
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
 }
