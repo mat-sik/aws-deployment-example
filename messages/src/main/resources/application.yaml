@@ -1,3 +1,9 @@
 spring:
   application:
     name: messages
+
+redis:
+  host: ${REDIS_HOSTNAME}
+  port: ${REDIS_PORT}
+  username: ${REDIS_USERNAME}
+  password: ${REDIS_PASSWORD}
