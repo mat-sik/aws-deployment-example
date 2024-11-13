@@ -1,4 +1,6 @@
 package com.github.matsik;
 
-public record MessageCreated(Long offset) {
+import jakarta.validation.constraints.Min;
+
+public record MessageCreated(@Min(0) Long offset) {
 }
