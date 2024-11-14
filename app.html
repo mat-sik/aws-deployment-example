@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #messages {
+            margin-top: 20px;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<h1>Messages</h1>
+
+<h2>Send a Message</h2>
+<form id="messageForm">
+    <label for="sender">Sender:</label>
+    <input type="text" id="sender" name="sender" required>
+    <br>
+    <label for="content">Content:</label>
+    <textarea id="content" name="content" required></textarea>
+    <br>
+    <button type="submit">Send Message</button>
+</form>
+
+<h2>Messages</h2>
+<div>
+    <label for="offset">Offset:</label>
+    <input type="number" id="offset" value="0" min="0">
+    <label for="limit">Limit:</label>
+    <input type="number" id="limit" value="10" min="1">
+    <button id="loadMessagesBtn">Load Messages</button>
+</div>
+
+<div id="messages"></div>
+
+<script>
+    const apiUrl = 'http://localhost:8080/messages'; // Replace with your API base URL
+
+    document.getElementById('messageForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const sender = document.getElementById('sender').value;
+        const content = document.getElementById('content').value;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sender, content }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Message sent! ID: ${data.offset}`);
+                document.getElementById('sender').value = '';
+                document.getElementById('content').value = '';
+            } else {
+                alert('Failed to send message');
+            }
+        } catch (error) {
+            alert('Error sending message');
+        }
+    });
+
+    document.getElementById('loadMessagesBtn').addEventListener('click', async function() {
+        const offset = parseInt(document.getElementById('offset').value, 10);
+        const limit = parseInt(document.getElementById('limit').value, 10);
+
+        try {
+            const response = await fetch(`${apiUrl}?offset=${offset}&limit=${limit}`);
+
+            if (response.ok) {
+                const data = await response.json();
+                const messages = data.messages || [];
+
+                const messagesContainer = document.getElementById('messages');
+                messagesContainer.innerHTML = '';
+                if (messages.length > 0) {
+                    messages.forEach(message => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.classList.add('message');
+                        messageDiv.innerHTML = `<strong>${message.sender}</strong><p>${message.content}</p>`;
+                        messagesContainer.appendChild(messageDiv);
+                    });
+                } else {
+                    messagesContainer.innerHTML = 'No messages found.';
+                }
+            } else {
+                alert('Failed to load messages');
+            }
+        } catch (error) {
+            alert('Error loading messages');
+        }
+    });
+</script>
+</body>
+</html>
