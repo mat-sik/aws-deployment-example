@@ -6,14 +6,12 @@ import com.github.matsik.Message;
 import com.github.matsik.Pagination;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class MessageService {
 
     private static final String MESSAGE_LOG_KEY = "message-log";
@@ -21,6 +19,11 @@ public class MessageService {
 
     private final StatefulRedisConnection<String, String> redisConnection;
     private final ObjectMapper objectMapper;
+
+    public MessageService(StatefulRedisConnection<String, String> redisConnection, ObjectMapper objectMapper) {
+        this.redisConnection = redisConnection;
+        this.objectMapper = objectMapper;
+    }
 
     public Long pushMessage(Message message) {
         RedisCommands<String, String> commands = redisConnection.sync();

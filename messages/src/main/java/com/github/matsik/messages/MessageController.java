@@ -6,7 +6,6 @@ import com.github.matsik.MessagePage;
 import com.github.matsik.Pagination;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,11 +19,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("messages")
-@RequiredArgsConstructor
 @Validated
 public class MessageController {
 
     private final MessageService service;
+
+    public MessageController(MessageService service) {
+        this.service = service;
+    }
 
     @PostMapping
     public ResponseEntity<MessageCreated> pushMessage(@RequestBody @Valid Message message) {
