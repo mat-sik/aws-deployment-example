@@ -8,6 +8,7 @@ services:
     ports:
       - "8081:8080"
     env_file: messages/.env
+    restart: always
   redis:
     image: redis:7.4.1
     container_name: redis-1
@@ -21,6 +22,27 @@ services:
       - ./redis.conf:/etc/redis/redis.conf
       - ./users.acl:/etc/redis/users.acl
     command: redis-server /etc/redis/redis.conf
+    restart: always
+
+  discovery:
+    image: discovery:latest
+    container_name: discovery-1
+    hostname: discovery-1
+    networks:
+      - net
+    ports:
+      - "8761:8761"
+    restart: always
+  gateway:
+    image: gateway:latest
+    container_name: gateway-1
+    hostname: gateway-1
+    networks:
+      - net
+    ports:
+      - "8080:8080"
+    env_file: gateway/.env
+    restart: always
 
 volumes:
   redis-data:
