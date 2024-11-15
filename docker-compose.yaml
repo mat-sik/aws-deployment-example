@@ -19,8 +19,8 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-      - ./redis.conf:/etc/redis/redis.conf
-      - ./users.acl:/etc/redis/users.acl
+      - ./redis/redis.conf:/etc/redis/redis.conf
+      - ./redis/users.acl:/etc/redis/users.acl
     command: redis-server /etc/redis/redis.conf
     restart: always
 
