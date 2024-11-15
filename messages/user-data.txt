@@ -1,0 +1,78 @@
+#!/bin/bash
+
+EC2_HOME="/home/ec2-user"
+cd $EC2_HOME
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Log file location
+LOG_FILE="user-data.log"
+
+# Function to log messages
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> $LOG_FILE
+}
+
+# Log the start of the script
+log_message "Starting user-data script"
+
+# Ensure AWS CLI is installed
+if ! command -v aws &> /dev/null; then
+  log_message "AWS CLI not installed. Please install and configure it."
+  exit 1
+fi
+
+# Ensure Docker is installed
+if ! command -v docker &> /dev/null; then
+  log_message "Docker not installed. Please install it."
+  exit 1
+fi
+
+# Set the S3 bucket name
+S3_BUCKET="aws-deployment-example-s3"
+
+# Set file names for configuration and Docker image
+IMAGE_FILE="messages:latest.tar"
+
+# Download and load Docker image
+log_message "Downloading $IMAGE_FILE from S3"
+aws s3 cp s3://$S3_BUCKET/$IMAGE_FILE $IMAGE_FILE
+
+log_message "Loading Docker image from $IMAGE_FILE"
+docker load -i $IMAGE_FILE
+rm -f $IMAGE_FILE  # Remove image file after loading
+
+# Create the docker-compose.yaml file
+log_message "Creating docker-compose.yaml file"
+cat <<EOL > docker-compose.yaml
+services:
+  messages:
+    image: messages:latest
+    container_name: messages-1
+    hostname: messages-1
+    networks:
+      - net
+    ports:
+      - "80:8080"
+    env_file: .env
+    restart: always
+EOL
+
+# Create the .env file
+log_message "Creating .env file"
+cat <<EOL > .env
+REDIS_HOSTNAME=redis
+REDIS_PORT=6379
+REDIS_USERNAME=messages
+REDIS_PASSWORD=pass
+EUREKA_SERVICE=discovery:8761
+EOL
+
+# Enable and start Docker-related service
+log_message "Enabling and starting docker_boot.service"
+systemctl enable docker_boot.service
+systemctl start docker_boot.service
+
+# Final log entry
+log_message "Script executed successfully"
