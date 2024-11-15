@@ -1,4 +1,13 @@
 services:
+  messages:
+    image: messages:latest
+    container_name: messages-1
+    hostname: messages-1
+    networks:
+      - net
+    ports:
+      - "8081:8080"
+    env_file: messages/.env
   redis:
     image: redis:7.4.1
     container_name: redis-1
