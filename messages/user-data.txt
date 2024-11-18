@@ -69,6 +69,7 @@ REDIS_PORT=6379
 REDIS_USERNAME=messages
 REDIS_PASSWORD=pass
 EUREKA_SERVICE=discovery:8761
+MESSAGES_IP=localhost
 EOL
 
 # Enable and start Docker-related service

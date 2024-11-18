@@ -66,6 +66,7 @@ log_message "Creating .env file"
 cat <<EOL > .env
 EUREKA_SERVICE=discovery:8761
 MESSAGES_SERVICE_ID=messages
+GATEWAY_IP=localhost
 EOL
 
 # Enable and start Docker-related service
