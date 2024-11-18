@@ -57,6 +57,8 @@ services:
       - "80:8080"
     env_file: .env
     restart: always
+networks:
+  net:
 EOL
 
 # Create the .env file

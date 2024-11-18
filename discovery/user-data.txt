@@ -56,6 +56,8 @@ services:
     ports:
       - "8761:8761"
     restart: always
+networks:
+  net:
 EOL
 
 # Enable and start Docker-related service
