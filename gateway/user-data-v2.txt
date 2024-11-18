@@ -31,6 +31,19 @@ if ! command -v docker &> /dev/null; then
   exit 1
 fi
 
+# Tag name and value for EC2 instances
+DISCOVERY_TAG_NAME="Name"
+DISCOVERY_TAG_VALUE="discovery-EC2"
+
+# Fetch the private DNS of the instance with the specified tag (Eureka service)
+log_message "Fetching private DNS of the instance with tag $DISCOVERY_TAG_NAME=$DISCOVERY_TAG_VALUE"
+DISCOVERY_HOSTNAME=$(aws ec2 describe-instances \
+    --filters "Name=tag:$DISCOVERY_TAG_NAME,Values=$DISCOVERY_TAG_VALUE" \
+              "Name=instance-state-name,Values=running" \
+    --query "Reservations[0].Instances[0].PrivateDnsName" \
+    --output text)
+log_message "Fetched DISCOVERY_HOSTNAME: $DISCOVERY_HOSTNAME"
+
 # IMDSv2 token to fetch the current EC2 instance's hostname
 log_message "Fetching IMDSv2 token"
 TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
@@ -44,7 +57,7 @@ log_message "Fetched HOSTNAME: $HOSTNAME"
 # Create the .env file with environment variables for Eureka and Gateway services
 log_message "Creating .env file"
 cat <<EOL > .env
-EUREKA_HOSTNAME=discovery
+EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
 MESSAGES_SERVICE_ID=messages
 GATEWAY_HOSTNAME=$HOSTNAME
 ALLOWED_ORIGINS=*

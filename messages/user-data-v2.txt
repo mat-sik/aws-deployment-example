@@ -1,12 +1,13 @@
 #!/bin/bash
 
+# Set the working directory for the EC2 instance
 EC2_HOME="/home/ec2-user"
 cd $EC2_HOME
 
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# Log file location
+# Log file location to store script execution logs
 LOG_FILE="user-data.log"
 
 # Function to log messages with timestamp
@@ -17,19 +18,43 @@ log_message() {
 # Log the start of the script execution
 log_message "Starting user-data script"
 
-# Ensure AWS CLI is installed
+# Ensure AWS CLI is installed on the EC2 instance
 log_message "Checking if AWS CLI is installed"
 if ! command -v aws &> /dev/null; then
   log_message "AWS CLI not installed. Please install and configure it."
   exit 1
 fi
 
-# Ensure Docker is installed
+# Ensure Docker is installed on the EC2 instance
 log_message "Checking if Docker is installed"
 if ! command -v docker &> /dev/null; then
   log_message "Docker not installed. Please install it."
   exit 1
 fi
+
+# Tag name and value for EC2 instances
+REDIS_TAG_NAME="Name"
+REDIS_TAG_VALUE="redis-EC2"
+DISCOVERY_TAG_NAME="Name"
+DISCOVERY_TAG_VALUE="discovery-EC2"
+
+# Fetch the private DNS of the Redis instance using the specified tag
+log_message "Fetching private DNS of the Redis instance with tag $REDIS_TAG_NAME=$REDIS_TAG_VALUE"
+REDIS_HOSTNAME=$(aws ec2 describe-instances \
+    --filters "Name=tag:$REDIS_TAG_NAME,Values=$REDIS_TAG_VALUE" \
+              "Name=instance-state-name,Values=running" \
+    --query "Reservations[0].Instances[0].PrivateDnsName" \
+    --output text)
+log_message "Fetched REDIS_HOSTNAME: $REDIS_HOSTNAME"
+
+# Fetch the private DNS of the Eureka (discovery) instance using the specified tag
+log_message "Fetching private DNS of the Eureka instance with tag $DISCOVERY_TAG_NAME=$DISCOVERY_TAG_VALUE"
+DISCOVERY_HOSTNAME=$(aws ec2 describe-instances \
+    --filters "Name=tag:$DISCOVERY_TAG_NAME,Values=$DISCOVERY_TAG_VALUE" \
+              "Name=instance-state-name,Values=running" \
+    --query "Reservations[0].Instances[0].PrivateDnsName" \
+    --output text)
+log_message "Fetched EUREKA_HOSTNAME: $DISCOVERY_HOSTNAME"
 
 # IMDSv2 token to fetch the current EC2 instance's hostname
 log_message "Fetching IMDSv2 token"
@@ -41,24 +66,26 @@ log_message "Fetching hostname of the calling EC2 instance"
 HOSTNAME=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/hostname)
 log_message "Fetched HOSTNAME: $HOSTNAME"
 
-# Create the .env file with environment variables for Eureka and Gateway services
+# Create the .env file with environment variables for Redis, Eureka, and Messages
 log_message "Creating .env file"
 cat <<EOL > .env
-EUREKA_HOSTNAME=discovery
-MESSAGES_SERVICE_ID=messages
-GATEWAY_HOSTNAME=$HOSTNAME
-ALLOWED_ORIGINS=*
+REDIS_HOSTNAME=$REDIS_HOSTNAME
+REDIS_PORT=6379
+REDIS_USERNAME=messages
+REDIS_PASSWORD=pass
+EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
+MESSAGES_HOSTNAME=$HOSTNAME
 EOL
 log_message ".env file created"
 
-# Create the docker-compose.yaml file
+# Create the docker-compose.yaml file for the services
 log_message "Creating docker-compose.yaml file"
 cat <<EOL > docker-compose.yaml
 services:
-  gateway:
-    image: gateway:latest
-    container_name: gateway-1
-    hostname: gateway-1
+  messages:
+    image: messages:latest
+    container_name: messages-1
+    hostname: messages-1
     networks:
       - net
     ports:
@@ -74,7 +101,7 @@ log_message "docker-compose.yaml file created"
 S3_BUCKET="aws-deployment-example-s3"
 
 # Set file names for the Docker image and configuration
-IMAGE_FILE="gateway:latest.tar"
+IMAGE_FILE="messages:latest.tar"
 
 # Download the Docker image from the S3 bucket
 log_message "Downloading $IMAGE_FILE from S3 bucket: $S3_BUCKET"
