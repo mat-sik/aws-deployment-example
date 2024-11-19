@@ -32,6 +32,7 @@ server:
 eureka:
   instance:
     host-name: ${GATEWAY_HOSTNAME}
+    ip-address: ${GATEWAY_IP}
     non-secure-port: 80
   client:
     serviceUrl:

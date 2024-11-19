@@ -7,6 +7,7 @@ server:
 eureka:
   instance:
     host-name: ${MESSAGES_HOSTNAME}
+    ip-address: ${MESSAGES_IP}
     non-secure-port: 80
   client:
     serviceUrl:
