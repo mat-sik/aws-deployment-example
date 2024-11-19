@@ -28,7 +28,7 @@ spring:
             - Method=GET
 
 server:
-  port: ${GATEWAY_DOCKER_PORT}
+  port: ${GATEWAY_PORT}
 client:
   messages:
     eurekaServiceId: ${MESSAGES_SERVICE_ID}
@@ -46,7 +46,6 @@ eureka:
   instance:
     host-name: ${GATEWAY_HOSTNAME}
     ip-address: ${GATEWAY_IP}
-    non-secure-port: ${GATEWAY_PORT}
 ---
 spring:
   config:

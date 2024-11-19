@@ -3,7 +3,7 @@ spring:
     name: messages
 
 server:
-  port: ${MESSAGES_DOCKER_PORT}
+  port: ${MESSAGES_PORT}
 eureka:
   client:
     serviceUrl:
@@ -23,7 +23,6 @@ eureka:
   instance:
     host-name: ${MESSAGES_HOSTNAME}
     ip-address: ${MESSAGES_IP}
-    non-secure-port: ${MESSAGES_PORT}
 ---
 spring:
   config:

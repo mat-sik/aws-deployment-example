@@ -65,7 +65,6 @@ cat <<EOL > .env
 GATEWAY_HOSTNAME=$HOSTNAME
 GATEWAY_IP=$PRIVATE_IP
 GATEWAY_PORT=80
-GATEWAY_DOCKER_PORT=80
 MESSAGES_SERVICE_ID=messages
 EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
 ALLOWED_ORIGINS=*
@@ -84,7 +83,7 @@ services:
     networks:
       - net
     ports:
-      - "$GATEWAY_PORT:$GATEWAY_DOCKER_PORT"
+      - "$GATEWAY_PORT:$GATEWAY_PORT"
     env_file: .env
     restart: always
 networks:
