@@ -74,13 +74,16 @@ log_message "Fetched PRIVATE_IP: $PRIVATE_IP"
 # Create the .env file with environment variables for Redis, Eureka, and Messages
 log_message "Creating .env file"
 cat <<EOL > .env
+MESSAGES_DOCKER_PORT=80
+MESSAGES_HOSTNAME=$HOSTNAME
+MESSAGES_IP=$PRIVATE_IP
+MESSAGES_PORT=80
+EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
 REDIS_HOSTNAME=$REDIS_HOSTNAME
 REDIS_PORT=6379
 REDIS_USERNAME=messages
 REDIS_PASSWORD=pass
-EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
-MESSAGES_HOSTNAME=$HOSTNAME
-MESSAGES_IP=$PRIVATE_IP
+SPRING_PROFILES_ACTIVE=aws
 EOL
 log_message ".env file created"
 
@@ -90,12 +93,12 @@ cat <<EOL > docker-compose.yaml
 services:
   messages:
     image: messages:latest
-    container_name: messages-1
-    hostname: messages-1
+    container_name: messages
+    hostname: messages
     networks:
       - net
     ports:
-      - "80:8080"
+      - "$MESSAGES_PORT:MESSAGES_DOCKER_PORT"
     env_file: .env
     restart: always
 networks:

@@ -1,8 +1,8 @@
 services:
   messages:
     image: messages:latest
-    container_name: messages-1
-    hostname: messages-1
+    container_name: messages
+    hostname: messages
     networks:
       - net
     ports:
@@ -11,8 +11,8 @@ services:
     restart: always
   redis:
     image: redis:7.4.1
-    container_name: redis-1
-    hostname: redis-1
+    container_name: redis
+    hostname: redis
     networks:
       - net
     ports:
@@ -26,8 +26,8 @@ services:
 
   discovery:
     image: discovery:latest
-    container_name: discovery-1
-    hostname: discovery-1
+    container_name: discovery
+    hostname: discovery
     networks:
       - net
     ports:
@@ -35,8 +35,8 @@ services:
     restart: always
   gateway:
     image: gateway:latest
-    container_name: gateway-1
-    hostname: gateway-1
+    container_name: gateway
+    hostname: gateway
     networks:
       - net
     ports:

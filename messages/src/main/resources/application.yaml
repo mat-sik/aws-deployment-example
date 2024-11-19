@@ -3,12 +3,8 @@ spring:
     name: messages
 
 server:
-  port: 8080
+  port: ${MESSAGES_DOCKER_PORT}
 eureka:
-  instance:
-    host-name: ${MESSAGES_HOSTNAME}
-    ip-address: ${MESSAGES_IP}
-    non-secure-port: 80
   client:
     serviceUrl:
       defaultZone: http://${EUREKA_HOSTNAME}:8761/eureka
@@ -18,3 +14,18 @@ redis:
   port: ${REDIS_PORT}
   username: ${REDIS_USERNAME}
   password: ${REDIS_PASSWORD}
+---
+spring:
+  config:
+    activate:
+      on-profile: aws
+eureka:
+  instance:
+    host-name: ${MESSAGES_HOSTNAME}
+    ip-address: ${MESSAGES_IP}
+    non-secure-port: ${MESSAGES_PORT}
+---
+spring:
+  config:
+    activate:
+      on-profile: docker-compose

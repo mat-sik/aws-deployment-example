@@ -62,11 +62,14 @@ log_message "Fetched PRIVATE_IP: $PRIVATE_IP"
 # Create the .env file with environment variables for Eureka and Gateway services
 log_message "Creating .env file"
 cat <<EOL > .env
-EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
-MESSAGES_SERVICE_ID=messages
 GATEWAY_HOSTNAME=$HOSTNAME
 GATEWAY_IP=$PRIVATE_IP
+GATEWAY_PORT=80
+GATEWAY_DOCKER_PORT=80
+MESSAGES_SERVICE_ID=messages
+EUREKA_HOSTNAME=$DISCOVERY_HOSTNAME
 ALLOWED_ORIGINS=*
+SPRING_PROFILES_ACTIVE=aws
 EOL
 log_message ".env file created"
 
@@ -76,12 +79,12 @@ cat <<EOL > docker-compose.yaml
 services:
   gateway:
     image: gateway:latest
-    container_name: gateway-1
-    hostname: gateway-1
+    container_name: gateway
+    hostname: gateway
     networks:
       - net
     ports:
-      - "80:8080"
+      - "$GATEWAY_PORT:$GATEWAY_DOCKER_PORT"
     env_file: .env
     restart: always
 networks:
