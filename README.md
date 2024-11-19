@@ -172,3 +172,9 @@ For redis server, you also should use inbound rule with custom TCP with the port
 To deploy frontend app, you can place it in S3 bucket which is configured for static file hosting.
 
 You will also need to set up the cors, to do so, set .env variable of gateway service with hostname of S3  
+
+## Secrets
+
+Instead of providing secrets via user-data script, a better approach would be to se SSM and fetch secrets with aws cli.
+
+The drawback of this solution is that to use it in private subnet, you would need special interface endpoint(which is paid)
