@@ -178,3 +178,8 @@ You will also need to set up the cors, to do so, set .env variable of gateway se
 Instead of providing secrets via user-data script, a better approach would be to se SSM and fetch secrets with aws cli.
 
 The drawback of this solution is that to use it in private subnet, you would need special interface endpoint(which is paid)
+
+## Describe instances
+
+If you could use public subnet only or use ec2 endpoint interface, you could use aws cli ec2 describe-instances command
+to fetch hostnames and ips of instances by tag, this simplify connection configuration between services.
