@@ -183,3 +183,11 @@ The drawback of this solution is that to use it in private subnet, you would nee
 
 If you could use public subnet only or use ec2 endpoint interface, you could use aws cli ec2 describe-instances command
 to fetch hostnames and ips of instances by tag, this simplify connection configuration between services.
+
+## Instance Connect Endpoint
+
+To set it up you need to create Instance Connect Endpoint, assign it to your custom VPC and to one of the subnets.
+I chose private subnet in AZ A.
+
+Then you need to create Security group for the ICE, there you need to create inbound and outbound rules for each
+instance security group you want to connect to, the port should be SSH
