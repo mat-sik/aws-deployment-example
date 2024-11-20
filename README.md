@@ -191,3 +191,15 @@ I chose private subnet in AZ A.
 
 Then you need to create Security group for the ICE, there you need to create inbound and outbound rules for each
 instance security group you want to connect to, the port should be SSH
+
+## Subnet per AZ for private public net
+
+If VPC is 10.0.0.0/16 32k
+
+aws-deployment-example-private-subnet-a 10.0.0.0/18 16k
+aws-deployment-example-private-subnet-b 10.0.64.0/19 8k
+aws-deployment-example-private-subnet-c 10.0.96.0/19 8k
+
+ws-deployment-example-public-subnet-a 10.0.128.0/18 16k
+aws-deployment-example-public-subnet-b 10.0.192.0/19 8k
+aws-deployment-example-public-subnet-c 10.0.224.0/19 8k
