@@ -14,17 +14,3 @@ redis:
   port: ${REDIS_PORT}
   username: ${REDIS_USERNAME}
   password: ${REDIS_PASSWORD}
----
-spring:
-  config:
-    activate:
-      on-profile: aws
-eureka:
-  instance:
-    host-name: ${MESSAGES_HOSTNAME}
-    ip-address: ${MESSAGES_IP}
----
-spring:
-  config:
-    activate:
-      on-profile: docker-compose

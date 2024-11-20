@@ -37,17 +37,3 @@ eureka:
   client:
     serviceUrl:
       defaultZone: http://${EUREKA_HOSTNAME}:8761/eureka
----
-spring:
-  config:
-    activate:
-      on-profile: aws
-eureka:
-  instance:
-    host-name: ${GATEWAY_HOSTNAME}
-    ip-address: ${GATEWAY_IP}
----
-spring:
-  config:
-    activate:
-      on-profile: docker-compose
