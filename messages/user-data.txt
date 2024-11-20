@@ -71,7 +71,7 @@ services:
   messages:
     image: messages:latest
     container_name: messages
-    hostname: messages
+    hostname: $HOSTNAME
     networks:
       - net
     ports:

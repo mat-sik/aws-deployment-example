@@ -68,7 +68,7 @@ services:
   gateway:
     image: gateway:latest
     container_name: gateway
-    hostname: gateway
+    hostname: $HOSTNAME
     networks:
       - net
     ports:

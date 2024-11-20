@@ -52,14 +52,24 @@ log_message "Loading Docker image from $IMAGE_FILE"
 docker load -i $IMAGE_FILE
 rm -f $IMAGE_FILE  # Remove image file after loading
 
+# IMDSv2 token to fetch the current EC2 instance's hostname
+log_message "Fetching IMDSv2 token"
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+log_message "IMDSv2 token obtained"
+
+# Fetch hostname of the calling EC2 instance
+log_message "Fetching hostname of the calling EC2 instance"
+HOSTNAME=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/hostname)
+log_message "Fetched HOSTNAME: $HOSTNAME"
+
 # Create the docker-compose.yaml file
 log_message "Creating docker-compose.yaml file"
 cat <<EOL > docker-compose.yaml
 services:
   redis:
     image: redis:7.4.1
-    container_name: redis-1
-    hostname: redis-1
+    container_name: redis
+    hostname: $HOSTNAME
     networks:
       - net
     ports:
