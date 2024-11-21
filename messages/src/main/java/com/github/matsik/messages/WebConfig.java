@@ -12,7 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final String allowedOrigins;
 
-    public WebConfig(@Value("allowedOrigins") String allowedOrigins) {
+    public WebConfig(@Value("${allowedOrigins}") String allowedOrigins) {
         this.allowedOrigins = allowedOrigins;
     }
 
