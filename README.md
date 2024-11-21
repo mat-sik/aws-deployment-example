@@ -203,3 +203,23 @@ aws-deployment-example-private-subnet-c 10.0.96.0/19 8k
 ws-deployment-example-public-subnet-a 10.0.128.0/18 16k
 aws-deployment-example-public-subnet-b 10.0.192.0/19 8k
 aws-deployment-example-public-subnet-c 10.0.224.0/19 8k
+
+## Local docker compose .env files
+
+messages/.env:
+```
+MESSAGES_PORT=8080
+EUREKA_HOSTNAME=discovery
+REDIS_HOSTNAME=redis
+REDIS_PORT=6379
+REDIS_USERNAME=messages
+REDIS_PASSWORD=pass
+```
+
+gateway/.env
+```
+ALLOWED_ORIGINS=*
+GATEWAY_PORT=8080
+MESSAGES_SERVICE_ID=messages
+EUREKA_HOSTNAME=discovery
+```
