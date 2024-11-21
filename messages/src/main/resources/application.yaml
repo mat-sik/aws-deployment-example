@@ -4,13 +4,11 @@ spring:
 
 server:
   port: ${MESSAGES_PORT}
-eureka:
-  client:
-    serviceUrl:
-      defaultZone: http://${EUREKA_HOSTNAME}:8761/eureka
 
 redis:
   host: ${REDIS_HOSTNAME}
   port: ${REDIS_PORT}
   username: ${REDIS_USERNAME}
   password: ${REDIS_PASSWORD}
+
+allowedOrigins: ${ALLOWED_ORIGINS}
