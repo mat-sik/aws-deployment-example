@@ -259,3 +259,8 @@ you need to create a service for your target instance. There you can define opti
 Then for the service you can register instance, by providing it IP and port.
 
 For me it looks like high level unnecesary abstraction over Route 53
+
+The dns name for each service is:
+```
+service_name.namespace_name -> ipv4 for the service if A record used in service definition
+```
