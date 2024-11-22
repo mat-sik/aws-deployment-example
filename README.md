@@ -196,6 +196,7 @@ instance security group you want to connect to, the port should be SSH
 
 If VPC is 10.0.0.0/16 32k
 
+```
 aws-deployment-example-private-subnet-a 10.0.0.0/18 16k
 aws-deployment-example-private-subnet-b 10.0.64.0/19 8k
 aws-deployment-example-private-subnet-c 10.0.96.0/19 8k
@@ -203,6 +204,7 @@ aws-deployment-example-private-subnet-c 10.0.96.0/19 8k
 ws-deployment-example-public-subnet-a 10.0.128.0/18 16k
 aws-deployment-example-public-subnet-b 10.0.192.0/19 8k
 aws-deployment-example-public-subnet-c 10.0.224.0/19 8k
+```
 
 ## Local docker compose .env files
 
