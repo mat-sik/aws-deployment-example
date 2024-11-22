@@ -234,8 +234,10 @@ For example, when you create private hosted zone for your VPC(and you enabled ho
 
 Create these two records:
 
+```
 Record name | type | routing policy | target | ttl
 discovery.messages.com A Simple 10.0.0.5 300
 redis.messages.com A  Simple 10.0.0.4 300
+```
 
 YOu need to ensure that the discovery and redis have these ips
