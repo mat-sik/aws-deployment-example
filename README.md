@@ -229,3 +229,13 @@ EUREKA_HOSTNAME=discovery
 To not use hardcoded ipv4 addresses for Discovery service and redis, you can create A records for these ips in Route 53.
 
 To do so, create private hosted zone for you VPC, enable VPC hostname in VPC settings and create two A records.
+
+For example, when you create private hosted zone for your VPC(and you enabled hostname resolution and DNS hostnames)
+
+Create these two records:
+
+Record name | type | routing policy | target | ttl
+discovery.messages.com A Simple 10.0.0.5 300
+redis.messages.com A  Simple 10.0.0.4 300
+
+YOu need to ensure that the discovery and redis have these ips
