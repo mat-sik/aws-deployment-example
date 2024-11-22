@@ -243,3 +243,19 @@ redis.messages.com A  Simple 10.0.0.4 300
 ```
 
 YOu need to ensure that the discovery and redis have these ips
+
+## Cloud map
+
+You can also use Cloud Map instead of Route 53 to create DNS hostnames. In my use case there is no difference.
+
+You first need to create a namespace. Then specify whether you only want to do API calls with AWS discover instances or
+if you also want to use DNS.
+
+I think you are able to do both of these things without cloud map, You can use hostnames from Route 53 private hosted zone 
+and use aws ec2 discover instances by TAGs.
+
+to use cloud map, after you've created namespace for API calls and private DNS, 
+you need to create a service for your target instance. There you can define options for DNS and health checks.
+Then for the service you can register instance, by providing it IP and port.
+
+For me it looks like high level unnecesary abstraction over Route 53
