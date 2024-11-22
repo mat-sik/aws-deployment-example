@@ -223,3 +223,9 @@ GATEWAY_PORT=8080
 MESSAGES_SERVICE_ID=messages
 EUREKA_HOSTNAME=discovery
 ```
+
+## Route 53
+
+To not use hardcoded ipv4 addresses for Discovery service and redis, you can create A records for these ips in Route 53.
+
+To do so, create private hosted zone for you VPC, enable VPC hostname in VPC settings and create two A records.
