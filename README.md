@@ -1,6 +1,6 @@
 # AWS Deployment Example
 
-## Deployment strategy
+## Deployment strategy For EC2
 
 ### 1) Install Docker and Docker-compose
 
@@ -151,9 +151,11 @@ in user-data scripts you need to load the file into docker, you can do it with:
 Remember to later remove the tar file
 
 ## Security groups
+
 You should try to make the rules as strict as possible.
 
-Generally, inbound rules should contain SG of the ICE for ssh and outbound rules should contain HTTPS for S3 prefix list.
+Generally, inbound rules should contain SG of the ICE for ssh and outbound rules should contain HTTPS for S3 prefix
+list.
 
 When you want to use eureka or redis, you should create outbound rules with custom TCP with appropriate ports.
 
@@ -171,13 +173,14 @@ For redis server, you also should use inbound rule with custom TCP with the port
 
 To deploy frontend app, you can place it in S3 bucket which is configured for static file hosting.
 
-You will also need to set up the cors, to do so, set .env variable of gateway service with hostname of S3  
+You will also need to set up the cors, to do so, set .env variable of gateway service with hostname of S3
 
 ## Secrets
 
 Instead of providing secrets via user-data script, a better approach would be to se SSM and fetch secrets with aws cli.
 
-The drawback of this solution is that to use it in private subnet, you would need special interface endpoint(which is paid)
+The drawback of this solution is that to use it in private subnet, you would need special interface endpoint(which is
+paid)
 
 ## Describe instances
 
@@ -209,6 +212,7 @@ aws-deployment-example-public-subnet-c 10.0.224.0/19 8k
 ## Local docker compose .env files
 
 messages/.env:
+
 ```
 MESSAGES_PORT=8080
 EUREKA_HOSTNAME=discovery
@@ -219,6 +223,7 @@ REDIS_PASSWORD=pass
 ```
 
 gateway/.env
+
 ```
 ALLOWED_ORIGINS=*
 GATEWAY_PORT=8080
@@ -251,16 +256,75 @@ You can also use Cloud Map instead of Route 53 to create DNS hostnames. In my us
 You first need to create a namespace. Then specify whether you only want to do API calls with AWS discover instances or
 if you also want to use DNS.
 
-I think you are able to do both of these things without cloud map, You can use hostnames from Route 53 private hosted zone 
+I think you are able to do both of these things without cloud map, You can use hostnames from Route 53 private hosted
+zone
 and use aws ec2 discover instances by TAGs.
 
-to use cloud map, after you've created namespace for API calls and private DNS, 
+to use cloud map, after you've created namespace for API calls and private DNS,
 you need to create a service for your target instance. There you can define options for DNS and health checks.
 Then for the service you can register instance, by providing it IP and port.
 
 For me it looks like high level unnecesary abstraction over Route 53
 
 The dns name for each service is:
+
 ```
 service_name.namespace_name -> ipv4 for the service if A record used in service definition
 ```
+
+## Deployment strategy For ECS
+
+Because I want to do things cheaply, we need to run our tasks in public subnet, so that we can access ECR and other
+aws services without interface endpoint(for free)
+
+### Public Cluster
+
+I use cluster with EC2 ASG.
+
+#### Network
+
+The ECS cluster should be placed in the public net to allow free access to AWS services. SG for cluster instances should
+allow
+the same traffic that is needed for the tasks. In my case http for messages service and tcp with the port of the redis
+for redis.
+
+### Redis Task definition
+
+- [redis task definition json](./redis/redis-task-definition.json)
+
+I want to deploy redis with users.acl, so that the redis client needs to use username and password. I also want to use
+custom redis.conf. Because of these two things we should somehow mount redis.conf and users.acl into docker container.
+This is hard to do in ECS task. To fulfil this requirement, the proper solution is to create custom docker image with
+those two files already copied with the use of Dockerfile. To change password or some setting, one would need to create
+new
+version of the image.
+
+#### Resources
+
+At most I could specify 2 vCPU and 0.905 GB for t3.micro (free-tier). The rest of the 1GB is probably needed by ECS
+agent
+container which runs on each ECS instance.
+
+#### Image
+
+Image can be loaded from public repositories or public or private ECR repo.
+
+#### Network
+
+To make the task discoverable from public net, we need to use host type of bridge. awsvpc does not work, because it does
+not give public ips to the tasks, one would need to use NAT gateway, which costs money.
+
+Docker bridge requires specifying port on the host EC2 instance and docker container, typical stuff for docker.
+
+In theory network type Host could also be used, in practice we would get the same deployment type as in EC2 deployment.
+
+#### Storage
+
+To use storage to persist the data, one can use docker volume with driver local and Scope shared. One also needs to
+enable use auto-provisioning option, to create volume file on running EC2 instance if it is missing.
+
+Of course you need to mount the file in the docker container to the proper directory that is required by the image.
+
+The file on the EC2 instance is located under /var/lib/docker/volumes. Naturally if the instance dies, data will be
+lost.
+
