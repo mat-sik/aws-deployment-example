@@ -233,7 +233,7 @@ EUREKA_HOSTNAME=discovery
 
 ## Route 53
 
-To not use hardcoded ipv4 addresses for Discovery service and redis, you can create A records for these ips in Route 53.
+To not use hardcoded ipv4 addresses for discovery service and redis, you can create A records for these ips in Route 53.
 
 To do so, create private hosted zone for you VPC, enable VPC hostname in VPC settings and create two A records.
 
@@ -247,7 +247,7 @@ discovery.messages.com A Simple 10.0.0.5 300
 redis.messages.com A  Simple 10.0.0.4 300
 ```
 
-YOu need to ensure that the discovery and redis have these ips
+You need to ensure that the discovery and redis have these ips.
 
 ## Cloud map
 
@@ -257,8 +257,7 @@ You first need to create a namespace. Then specify whether you only want to do A
 if you also want to use DNS.
 
 I think you are able to do both of these things without cloud map, You can use hostnames from Route 53 private hosted
-zone
-and use aws ec2 discover instances by TAGs.
+zone and use aws ec2 discover instances by TAGs.
 
 to use cloud map, after you've created namespace for API calls and private DNS,
 you need to create a service for your target instance. There you can define options for DNS and health checks.
@@ -275,34 +274,41 @@ service_name.namespace_name -> ipv4 for the service if A record used in service 
 ## Deployment strategy For ECS
 
 Because I want to do things cheaply, we need to run our tasks in public subnet, so that we can access ECR and other
-aws services without interface endpoint(for free)
+aws services without interface endpoint(for free).
 
 ### Public Cluster
 
-I use cluster with EC2 ASG.
+I use cluster with EC2 ASG and free t3.micro instances.
 
 #### Network
 
 The ECS cluster should be placed in the public net to allow free access to AWS services. SG for cluster instances should
-allow
-the same traffic that is needed for the tasks. In my case http for messages service and tcp with the port of the redis
+allow the same traffic that is needed for the tasks. In my case http for messages service and tcp with the port of the
+redis
 for redis.
 
 When using Docker Bridge, the tasks don't have their own SG, they share them with the ECS EC2 instances.
 
-Because there is no need to make Redis public, in the ECS traffic allow inbound traffic for redis only from the private
+Because there is no need to make Redis public, in the SG for ECS EC2 instaces allow inbound traffic for redis only from
+the private
 ips of the public subnet, in my case it is 10.0.128/17, so all private ips in public subnets.
 
 ##### Service Connect
 
-In my simplified deployment with just messages service and redis I used service connect feature to simplify connecting services.
+In my simplified deployment with just messages service and redis I used service connect feature to simplify connecting
+services.
 
-To make it work enable service connect client-server for redis, choose task port for redis(the port mapping specified in
-task definition). Choose namespace for example of the cluster, fill Discovery which is optional name for the service in cloud map,
-choose DNS name that will be used in clients to connect to the redis and choose port I chose the same one as in redis.
+To make it work enable service connect client and server mode for redis, choose task port for redis(the port mapping
+specified in
+task definition). Choose namespace for example the one that is auto created when creating the cluster, fill Discovery
+which is optional name for the service in cloud map,
+choose DNS name that will be used by clients to connect to the redis and choose the port.
+I chose the same one as in redis task definition.
 
-In clients, you need to enable service connect client in service definition and in task definition as redis hostname you
-need to use the DNS name from redis service service connect definition.
+For clients, in service definition you need to enable service connect client side only mode. In task definition in place
+in which you need to provide the ip or hostname of the redis service provide DNS name that was defined in service
+connect
+for the needed service.
 
 When using ECS service connect with task that use bridge networking mode, the SG for EC2 instances in the ECS cluster
 should allow inbound tcp traffic from upper dynamic port range that is 49152 - 65535.
@@ -375,8 +381,11 @@ In theory network type Host could also be used, in practice we would get the sam
 
 #### Storage
 
-To use storage to persist the data, one can use docker volume with driver local and Scope shared. One also needs to
-enable use auto-provisioning option, to create volume file on running EC2 instance if it is missing.
+To use storage to persist the data, one can use docker volume with driver local(you must use lower case otherwise your
+task will not boot without any logs) and Scope shared(so that when you restart the tasks, volume will not be created
+for each new task). One also needs to enable - use auto-provisioning option, to create volume file on running EC2
+instance
+if it is missing.
 
 Of course you need to mount the file in the docker container to the proper directory that is required by the image.
 
