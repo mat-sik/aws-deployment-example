@@ -288,6 +288,8 @@ allow
 the same traffic that is needed for the tasks. In my case http for messages service and tcp with the port of the redis
 for redis.
 
+When using Docker Bridge, the tasks don't have their own SG, they share them with the ECS EC2 instances.
+
 ### Redis Task definition
 
 - [redis task definition json](./redis/redis-task-definition.json)
