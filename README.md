@@ -264,7 +264,7 @@ to use cloud map, after you've created namespace for API calls and private DNS,
 you need to create a service for your target instance. There you can define options for DNS and health checks.
 Then for the service you can register instance, by providing it IP and port.
 
-For me it looks like high level unnecesary abstraction over Route 53
+For me it looks like high level unnecessary abstraction over Route 53
 
 The dns name for each service is:
 
@@ -289,6 +289,59 @@ the same traffic that is needed for the tasks. In my case http for messages serv
 for redis.
 
 When using Docker Bridge, the tasks don't have their own SG, they share them with the ECS EC2 instances.
+
+Because there is no need to make Redis public, in the ECS traffic allow inbound traffic for redis only from the private
+ips of the public subnet, in my case it is 10.0.128/17, so all private ips in public subnets.
+
+##### Service Connect
+
+In my simplified deployment with just messages service and redis I used service connect feature to simplify connecting services.
+
+To make it work enable service connect client-server for redis, choose task port for redis(the port mapping specified in
+task definition). Choose namespace for example of the cluster, fill Discovery which is optional name for the service in cloud map,
+choose DNS name that will be used in clients to connect to the redis and choose port I chose the same one as in redis.
+
+In clients, you need to enable service connect client in service definition and in task definition as redis hostname you
+need to use the DNS name from redis service service connect definition.
+
+When using ECS service connect with task that use bridge networking mode, the SG for EC2 instances in the ECS cluster
+should allow inbound tcp traffic from upper dynamic port range that is 49152 - 65535.
+
+##### ECS-public-cluster-EC2-SG
+
+```
+sgr-05be99a4f5e5cff55
+IPv4
+Custom TCP
+TCP
+6379
+10.0.128.0/17
+private ips in public subnet
+–
+sgr-078e57c38aaca6c54
+IPv4
+HTTP
+TCP
+80
+0.0.0.0/0
+client
+–
+sgr-00427ed8e81f6d727
+IPv4
+Custom TCP
+TCP
+49152 - 65535
+10.0.128.0/17
+dynamic ports for service connect
+–
+sgr-0a347469160b4cee1
+IPv4
+SSH
+TCP
+22
+<your public ip>
+my pc
+```
 
 ### Redis Task definition
 
