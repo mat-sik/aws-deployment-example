@@ -1,36 +1,56 @@
 {
-    "taskDefinitionArn": "arn:aws:ecs:eu-north-1:992382644961:task-definition/cred-redis-task:26",
+    "taskDefinitionArn": "arn:aws:ecs:eu-north-1:992382644961:task-definition/simp-messages-task:12",
     "containerDefinitions": [
         {
-            "name": "cred-redis",
-            "image": "992382644961.dkr.ecr.eu-north-1.amazonaws.com/aws-deployment-example/cred-redis:latest",
+            "name": "simp-messages",
+            "image": "992382644961.dkr.ecr.eu-north-1.amazonaws.com/aws-deployment-example/simp-messages:latest",
             "cpu": 2048,
             "memory": 927,
             "memoryReservation": 819,
             "portMappings": [
                 {
-                    "name": "redis-port",
-                    "containerPort": 6379,
-                    "hostPort": 6379,
-                    "protocol": "tcp"
+                    "name": "simp-messages-port",
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
                 }
             ],
             "essential": true,
-            "environment": [],
-            "environmentFiles": [],
-            "mountPoints": [
+            "environment": [
                 {
-                    "sourceVolume": "redis-data",
-                    "containerPath": "/data",
-                    "readOnly": false
+                    "name": "ALLOWED_ORIGINS",
+                    "value": "*"
+                },
+                {
+                    "name": "MESSAGES_PORT",
+                    "value": "80"
+                },
+                {
+                    "name": "REDIS_HOSTNAME",
+                    "value": "redis"
+                },
+                {
+                    "name": "REDIS_PASSWORD",
+                    "value": "pass"
+                },
+                {
+                    "name": "REDIS_PORT",
+                    "value": "6379"
+                },
+                {
+                    "name": "REDIS_USERNAME",
+                    "value": "messages"
                 }
             ],
+            "environmentFiles": [],
+            "mountPoints": [],
             "volumesFrom": [],
             "ulimits": [],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/cred-redis-task",
+                    "awslogs-group": "/ecs/simp-messages-task",
                     "mode": "non-blocking",
                     "awslogs-create-group": "true",
                     "max-buffer-size": "25m",
@@ -42,20 +62,11 @@
             "systemControls": []
         }
     ],
-    "family": "cred-redis-task",
+    "family": "simp-messages-task",
     "executionRoleArn": "arn:aws:iam::992382644961:role/ecsTaskExecutionRole",
     "networkMode": "bridge",
-    "revision": 26,
-    "volumes": [
-        {
-            "name": "redis-data",
-            "dockerVolumeConfiguration": {
-                "scope": "shared",
-                "autoprovision": true,
-                "driver": "local"
-            }
-        }
-    ],
+    "revision": 12,
+    "volumes": [],
     "status": "ACTIVE",
     "requiresAttributes": [
         {
@@ -75,12 +86,6 @@
         },
         {
             "name": "com.amazonaws.ecs.capability.docker-remote-api.1.21"
-        },
-        {
-            "name": "ecs.capability.docker-plugin.local"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.25"
         },
         {
             "name": "ecs.capability.execution-role-ecr-pull"
@@ -105,7 +110,7 @@
         "cpuArchitecture": "X86_64",
         "operatingSystemFamily": "LINUX"
     },
-    "registeredAt": "2024-11-27T11:04:55.805Z",
+    "registeredAt": "2024-11-27T11:05:16.770Z",
     "registeredBy": "arn:aws:iam::992382644961:user/Mateusz",
     "tags": [
         {

@@ -388,7 +388,9 @@ Otherwise, **Service Connect** will not work.
 **Task definitions** are blueprints for the deployment of containers. They are similar to the contents of a
 **docker-compose** file.
 
-Example task definition: [**redis task definition json**](./redis/redis-task-definition.json)
+Example task definition: 
+- [**redis task definition json**](./redis/redis-task-definition.json)
+- [**messages task definition json**](./messages/messages-task-definition.json)
 
 #### **Image**
 
