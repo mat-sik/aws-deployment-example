@@ -268,28 +268,6 @@ When using either a **public network** or **EC2 interface endpoint**, the AWS CL
 be used to fetch the **IPv4 addresses** or **hostnames** of other services by their **tags**. This is a great method for
 service discovery.
 
-## Local docker compose .env files
-
-messages/.env:
-
-```
-MESSAGES_PORT=8080
-EUREKA_HOSTNAME=discovery
-REDIS_HOSTNAME=redis
-REDIS_PORT=6379
-REDIS_USERNAME=messages
-REDIS_PASSWORD=pass
-```
-
-gateway/.env
-
-```
-ALLOWED_ORIGINS=*
-GATEWAY_PORT=8080
-MESSAGES_SERVICE_ID=messages
-EUREKA_HOSTNAME=discovery
-```
-
 ## **Route 53**
 
 To not use hardcoded **IPv4** addresses for **Eureka** and **Redis**, you can create **A records** for these **IPv4**
@@ -447,3 +425,25 @@ Of course, the deployed application image needs to be properly configured for us
 
 The file on the **EC2 instance** is located under **/var/lib/docker/volumes**. Naturally, if the instance dies, data
 will be lost.
+
+## Local docker compose .env files
+
+messages/.env:
+
+```
+MESSAGES_PORT=8080
+EUREKA_HOSTNAME=discovery
+REDIS_HOSTNAME=redis
+REDIS_PORT=6379
+REDIS_USERNAME=messages
+REDIS_PASSWORD=pass
+```
+
+gateway/.env
+
+```
+ALLOWED_ORIGINS=*
+GATEWAY_PORT=8080
+MESSAGES_SERVICE_ID=messages
+EUREKA_HOSTNAME=discovery
+```
