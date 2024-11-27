@@ -1,8 +1,21 @@
 # AWS Deployment Example
 
-## Deployment strategy For EC2
+This guide provides a comprehensive deployment strategy for **EC2** and **ECS** using **Docker** and AWS services.
 
-### 1) Install Docker and Docker-compose
+## Deployment strategy using **EC2**
+
+This strategy enables an architecture where instances that do not need internet exposure can be securely placed in a
+private subnet, while user-facing instances can be deployed in a public subnet.
+
+Alternatively, all instances can be located in a private subnet, with the application's functionality exposed through an
+**Application Load Balancer (ALB)**. The ALB can be attached to the service that would typically be user-facing.
+
+### 1) Install **Docker** and **Docker-compose**
+
+The first step is to prepare an **EC2** instance for the task.
+
+You will need to install **Docker** and **Docker Compose** (I recommend **Docker Compose**, although it is not mandatory
+for this setup).
 
 ```shell
 sudo yum update -y  
@@ -17,9 +30,13 @@ sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-c
 sudo chmod +x /usr/bin/docker-compose
 ```
 
-### 2) Create docker_boot.service and copy it to /etc/system/systemd
+### 2) Create **docker_boot.service** and copy it to `/etc/system/systemd`
 
-This step allows docker-compose.yaml to be run on each EC2 startup, so that our app will always work.
+It is desirable for our application to start automatically when the **EC2** instance boots. To achieve this, we need to
+create a **systemd** service.
+
+This basic **systemd** service will execute `docker-compose up -d --remove-orphans` during the **EC2** instance's
+startup process.
 
 [docker_boot.service](./docker_boot.service)
 
@@ -38,24 +55,31 @@ ExecStart=/usr/bin/docker-compose -f /home/ec2-user/docker-compose.yaml up -d --
 WantedBy=multi-user.target
 ```
 
+For the systemd service to be effective, it must be placed in the appropriate directory.
+
 ```shell
 sudo mv /home/ec2-user/docker_boot.service /etc/systemd/system
 ```
 
-### 3) Create AMI from step 1) and 2)
+### 3) Create **AMI** from step 1) and 2)
 
-To do so, you need to create EC2 instance, do the steps manually and after that create AMI from the instance. This is
-equivalent in this case to taking the snapshot of the instance.
+Repeating steps 1 and 2 manually for each new service deployment is not ideal.
+
+To streamline the process, you should create an **AMI** from an instance where steps 1 and 2 have already been
+completed.
 
 ### 4) Create user-data script
 
-The script should:
+The behavior of the **AMI** will be customized using shell scripts provided as AWS user data files.
 
-- fetch image from S3
-- load image into docker
-- create docker-compose.yaml
-- fetch or create additional files for docker-compose.yaml
-- enable and start docker_boot.service
+The script should perform the following tasks:
+
+- Fetch the **Docker** image from **S3** (or **ECR**; however, **S3** is preferable for private subnets as it can be
+  accessed for free using a gateway endpoint).
+- Load the image into **Docker**.
+- Generate the `docker-compose.yaml` file.
+- Fetch or create any additional files required by `docker-compose.yaml`.
+- Enable and start the **docker_boot.service**.
 
 example scripts:
 
@@ -66,6 +90,8 @@ example scripts:
 
 ### Enable and Start docker_boot.service
 
+To enable the systemd service, run the following commands:
+
 ```shell
 sudo systemctl enable docker_boot.service
 sudo systemctl start docker_boot.service
@@ -73,76 +99,126 @@ sudo systemctl start docker_boot.service
 
 ### Notes
 
-In case of my application, messages and gateway services need to call redis and discovery services.
+In the case of my application, the **messages** and **gateway** services need to communicate with the **Redis** and
+**discovery** services.
 
-I chose to select manually private ips for redis - 10.0.0.4 and discovery 10.0.0.5.
+I manually assigned private static **IPv4** addresses as follows:
 
-Later I reference these ips in user-data.
+```
+redis - 10.0.0.4
+discovery - 10.0.0.5
+```
 
-Another approach would be to use aws ec2 discover-instances, but this service requires either public network or
-special interface endpoint(which is paid)
+These **IPv4** addresses can be used in user data to help other services locate the **Redis** and **discovery**
+services.
 
-I also use IMSDv2 for fetching ip and hostname of the constructed ec2 instance. This is required for properly
-configuring eureka server.
+If hardcoding **IPv4** addresses is not desirable, you can create a **Route 53** private hosted zone with **A** records.
+However, this approach also involves manual work, such as creating the **A** records.
 
-### EC2 templates
+A more dynamic approach would be to use the `aws ec2 discover-instances` command to fetch **IPv4** addresses based on
+**EC2** instance tags or other attributes. However, this method requires access to AWS services, which means either
+public internet access or a **VPC** interface endpoint (a paid service).
 
-Instead of manually creating EC2 instances, the better approach is to create templates, there you can hard code
-expected ips for redis and discovery services.
+In my scripts, I use **IMDSv2** to fetch the IP address and hostname of the **EC2** instance being configured. This is
+necessary for properly setting up the **Eureka** server.
 
-## VPC
+### **EC2** templates
 
-### 1) Create custom VPC
+To avoid repetitive **EC2** instance configurations, create an **EC2** template for each service. When using an **Auto
+Scaling Group (ASG)**, avoid specifying network details such as a static **IPv4** address. If a service, such as **Redis
+**, requires a static **IPv4** address, it can be hardcoded into the configuration. However, this approach is suitable
+primarily for learning or testing purposes and is not ideal for scalable environments.
 
-If you want to use DNS to communicate between EC2 instances, enable DNS hostnames.
+## **VPC**
+
+In my deployment, I aim to create public subnets with internet access and private subnets that are as secure as
+possible.
+
+### 1) Create custom **VPC**
+
+To enable DNS-based communication between **EC2** instances, you need to enable DNS hostnames for your **VPC**.
 
 ### 2) Create private subnet and public subnet
 
-You need to create two route tables, one for public subnet and one for private subnet.
+1) Create two **route tables**: one for the **public subnet** and one for the **private subnet**.
 
-For internet connection in public subnet, you need to create internet gateway.
+2) For internet access in the **public subnet**, create an **Internet Gateway (IGW)** and attach it to the **VPC**.
 
-When creating subnets I assigned 10.0.0.0/17 for private and 10.0.128.0/17 for public.
+3) **Subnet IP Address Assignment**:
 
-To make subnet public. you should create record 0.0.0.0/0 that points to IGW.
+    - I assigned **10.0.0.0/17** for the **private subnet** and **10.0.128.0/17** for the **public subnet**, resulting
+      in a 50-50 split.
 
-#### Instance Connect Endpoint
+4) Make the subnet **public**:
 
-To be able to connect to instances in private subnet, you need to create EC2 Instance Connect Endpoint.
-You will need to assign it to the custom VPC, the private subnet and
-security group that will be used to allow communication between given EC2 and ICE.
-That is, for a given EC2 instance, you should create rule in its SG that allows inbound ssh from this SG.
+    - Create a route in the **public route table** with the destination **0.0.0.0/0** and point it to the **IGW**.
 
-#### S3 Gateway Endpoint
+5) To ensure high availability, create three subnets across three **Availability Zones (AZs)**, each having a **public**
+   and a **private subnet**.
 
-Also for the sake of my implementation, you should also allow instances to talk to S3. To make it work in private
-subnets, you need to create S3 gateway endpoint and add create route for it in the route table. You should
-also create the record for public subnet, because this is more efficient way of communication with S3 than public
-internet.
+#### **Instance Connect Endpoint**
 
-To create the record, destination should be special prefix list from amazon for S3 and the target should be the S3
-gateway endpoint.
+To enable SSH access to instances in the **private subnet**, you need to create an **EC2 Instance Connect Endpoint (ICE)
+**.
 
-In EC2 instances security groups you should allow outbound traffic for HTTPS for special prefix list for S3. Basically
-the same on as in route table.
+- You can create the **ICE** in a single subnet and then use it across other subnets within the same **VPC**, but doing
+  so may impact high availability.
+- Steps for creating **ICE**:
+    - Assign the **ICE** to your chosen **VPC** and **private subnet**.
+    - Create a **Security Group (SG)** for **ICE**, allowing inbound and outbound SSH traffic for the instances that
+      require **ICE** access.
+    - Add the **ICE** security group as an inbound rule in the target instance's security group.
 
-You also need to create IAM Role that has read permissions for S3, then you should assign this role to EC2 that needs
-access to the S3
+#### **S3 Gateway Endpoint**
 
-## S3
+To use **S3** from within your private network, create an **S3 Gateway Endpoint**. This is one of the two free gateway
+endpoints offered by AWS, the other being the **DynamoDB Gateway Endpoint**. Using these endpoints is more efficient
+than accessing **S3** over the public internet because the traffic goes through the **AWS** private network instead.
 
-Technically, ECR would be a better choice here than S3, but you cannot call ECR from private subnets for free, you
-would need interface endpoint.
+Steps to create an **S3 Gateway Endpoint**:
 
-Because of this I chose to use S3(ECR also uses S3 underneath).
+- Create the **S3 Gateway Endpoint** (`com.amazonaws.<region>.s3`) and assign it to your chosen **VPC**.
+- Add a route to the **private subnet's route table**, pointing to the **S3 Gateway Endpoint** as the target. The source
+  should be the pre-created **AWS prefix list** for **S3** that is associated with the endpoint.
+- In the **Security Group (SG)** of the **EC2** instances that need to access **S3**, create an outbound rule allowing *
+  *HTTPS** traffic to the same prefix list used in the route table.
+- Create an **IAM Role** for **EC2** instances, granting them permission to read from **S3** (or additional permissions,
+  if needed).
 
-To use S3 for this purpose, you need to build the image locally and save it with:
+### Subnet per AZ for private/public subnets
+
+If VPC is 10.0.0.0/16 32k
+
+```
+| Subnet Name                               | CIDR Block       | IPs Allocated |
+|-------------------------------------------|------------------|---------------|
+| aws-deployment-example-private-subnet-a   | 10.0.0.0/18      | 16k           |
+| aws-deployment-example-private-subnet-b   | 10.0.64.0/19     | 8k            |
+| aws-deployment-example-private-subnet-c   | 10.0.96.0/19     | 8k            |
+| aws-deployment-example-public-subnet-a    | 10.0.128.0/18    | 16k           |
+| aws-deployment-example-public-subnet-b    | 10.0.192.0/19    | 8k            |
+| aws-deployment-example-public-subnet-c    | 10.0.224.0/19    | 8k            |
+```
+
+## **S3**
+
+Technically, **ECR** would be a better choice than **S3** for storing Docker images. However, you cannot access **ECR**
+from private subnets for free; an **interface endpoint** would be required. Interestingly, **ECR** uses **S3** as its
+underlying storage.
+
+To download an image from **S3**, treat it as any other file:
+
+```shell
+aws s3 cp s3://<bucket-name>/<file-name> <file-name>
+```
+
+To use S3 for this purpose, build the image locally and save it with:
 
 ```shell
  docker save -o gateway:latest.tar gateway:latest
 ```
 
-in user-data scripts you need to load the file into docker, you can do it with:
+in user-data scripts load the file into docker, do it with:
 
 ```shell
  docker load -i gateway:latest.tar
@@ -150,64 +226,45 @@ in user-data scripts you need to load the file into docker, you can do it with:
 
 Remember to later remove the tar file
 
-## Security groups
+## Security Groups
 
-You should try to make the rules as strict as possible.
+Make the security group (SG) rules as strict as possible.
 
-Generally, inbound rules should contain SG of the ICE for ssh and outbound rules should contain HTTPS for S3 prefix
-list.
-
-When you want to use eureka or redis, you should create outbound rules with custom TCP with appropriate ports.
+- Every SG should include an **inbound rule** for **ICE** (EC2 Instance Connect Endpoint) and an **outbound rule** for *
+  *S3**.
+- For **Eureka** and **Redis**, use **custom TCP rules** with the appropriate ports.
 
 ### Eureka
 
-For eureka server, you should enable custom TCP inbound rule for port on which server is hosted.
+For the **Eureka server**, enable a **custom TCP inbound rule** for the port on which the server is hosted.
 
-Services that depend on the eureka server, should allow outbound rules for the same port.
+- Services that depend on the Eureka server should include **outbound rules** for the same port to allow communication.
 
 ### Redis
 
-For redis server, you also should use inbound rule with custom TCP with the port of the server.
+The configuration for **Redis** is the same as for **Eureka**. Enable a **custom TCP inbound rule** for the port Redis
+is running on, and services that need to communicate with Redis should allow outbound traffic for that port.
 
 ## Frontend
 
-To deploy frontend app, you can place it in S3 bucket which is configured for static file hosting.
+To deploy the frontend application, place it in an **S3 bucket** configured for **static file hosting**.
 
-You will also need to set up the cors, to do so, set .env variable of gateway service with hostname of S3
+- **CORS** (Cross-Origin Resource Sharing) must be set up. To do so, configure the `.env` variable of the **gateway
+  service** with the hostname of the S3 bucket.
 
 ## Secrets
 
-Instead of providing secrets via user-data script, a better approach would be to se SSM and fetch secrets with aws cli.
+Instead of providing secrets through a **user-data script**, a better approach is to use **AWS SSM** (AWS Systems
+Manager) to securely fetch secrets using the **AWS CLI** from within the application code.
 
-The drawback of this solution is that to use it in private subnet, you would need special interface endpoint(which is
-paid)
+- The drawback of this solution is that, for private subnets, an **interface endpoint** is required (which is a paid
+  service).
 
-## Describe instances
+## Describe Instances
 
-If you could use public subnet only or use ec2 endpoint interface, you could use aws cli ec2 describe-instances command
-to fetch hostnames and ips of instances by tag, this simplify connection configuration between services.
-
-## Instance Connect Endpoint
-
-To set it up you need to create Instance Connect Endpoint, assign it to your custom VPC and to one of the subnets.
-I chose private subnet in AZ A.
-
-Then you need to create Security group for the ICE, there you need to create inbound and outbound rules for each
-instance security group you want to connect to, the port should be SSH
-
-## Subnet per AZ for private public net
-
-If VPC is 10.0.0.0/16 32k
-
-```
-aws-deployment-example-private-subnet-a 10.0.0.0/18 16k
-aws-deployment-example-private-subnet-b 10.0.64.0/19 8k
-aws-deployment-example-private-subnet-c 10.0.96.0/19 8k
-
-ws-deployment-example-public-subnet-a 10.0.128.0/18 16k
-aws-deployment-example-public-subnet-b 10.0.192.0/19 8k
-aws-deployment-example-public-subnet-c 10.0.224.0/19 8k
-```
+When using either a **public network** or **EC2 interface endpoint**, the AWS CLI command `ec2 describe-instances` can
+be used to fetch the **IPv4 addresses** or **hostnames** of other services by their **tags**. This is a great method for
+service discovery.
 
 ## Local docker compose .env files
 
@@ -231,164 +288,160 @@ MESSAGES_SERVICE_ID=messages
 EUREKA_HOSTNAME=discovery
 ```
 
-## Route 53
+## **Route 53**
 
-To not use hardcoded ipv4 addresses for discovery service and redis, you can create A records for these ips in Route 53.
+To not use hardcoded **IPv4** addresses for **Eureka** and **Redis**, you can create **A records** for these **IPv4**
+addresses in **Route 53**.
 
-To do so, create private hosted zone for you VPC, enable VPC hostname in VPC settings and create two A records.
+- Enable **DNS resolution** and enable **DNS hostnames**.
+- Create a **private hosted zone** for the chosen **VPC** (this is paid).
+- Create **A records** for the chosen **IPv4** addresses. One can use a list of addresses and later use a **load
+  balancing** strategy.
 
-For example, when you create private hosted zone for your VPC(and you enabled hostname resolution and DNS hostnames)
-
-Create these two records:
+In my case, I created these records:
 
 ```
-Record name | type | routing policy | target | ttl
-discovery.messages.com A Simple 10.0.0.5 300
-redis.messages.com A  Simple 10.0.0.4 300
+| Record name           | Type | Routing policy | Target      | TTL  |
+|-----------------------|------|----------------|-------------|------|
+| discovery.messages.com | A    | Simple         | 10.0.0.5    | 300  |
+| redis.messages.com     | A    | Simple         | 10.0.0.4    | 300  |
 ```
 
-You need to ensure that the discovery and redis have these ips.
+Make sure that eureka and redis have these static private addresses.
 
-## Cloud map
+Make sure that **Eureka** and **Redis** have these static private addresses.
 
-You can also use Cloud Map instead of Route 53 to create DNS hostnames. In my use case there is no difference.
+## **Cloud Map**
 
-You first need to create a namespace. Then specify whether you only want to do API calls with AWS discover instances or
-if you also want to use DNS.
+**Cloud Map** can be used instead of **Route 53** to create **DNS** hostnames. In my use case, there is no difference.
+In reality, **Cloud Map** uses **Route 53** underneath.
 
-I think you are able to do both of these things without cloud map, You can use hostnames from Route 53 private hosted
-zone and use aws ec2 discover instances by TAGs.
+- Create a **namespace**. Specify whether only API Calls (**AWS EC2 discover instances**) are needed or also **DNS
+  hostnames**.
+- Create a **service** for the target instance. One can select options here for **DNS** and **health checks**.
+- Register the instance by providing its **IPv4** address and port.
 
-to use cloud map, after you've created namespace for API calls and private DNS,
-you need to create a service for your target instance. There you can define options for DNS and health checks.
-Then for the service you can register instance, by providing it IP and port.
+When using **DNS**, the steps semantically are the same as when using **Route 53**.
 
-For me it looks like high level unnecessary abstraction over Route 53
-
-The dns name for each service is:
+The **DNS** name for each service is:
 
 ```
 service_name.namespace_name -> ipv4 for the service if A record used in service definition
 ```
 
-## Deployment strategy For ECS
+## **Deployment strategy For ECS**
 
-Because I want to do things cheaply, we need to run our tasks in public subnet, so that we can access ECR and other
-aws services without interface endpoint(for free).
+Using **ECS** requires much less labor than **EC2**, but it is more complicated because **ECS** abstractions must be
+understood.
 
-### Public Cluster
+I don't want to pay for **network interfaces**, so I need to run my tasks in the **public network**.
 
-I use cluster with EC2 ASG and free t3.micro instances.
+The proper solution would be to create two clusters: one for instances that don't require access to the public
+internet (**private network**) and one for instances that are **user-facing**. As was the case in **EC2** deployment,
+all tasks can be run in the private network, and the **ALB** can be **user-facing**.
 
-#### Network
+The service that we need and requires either **public internet** or an **interface endpoint** is **ECR**. Using **public
+internet** has the nice benefit that it allows for fetching any image that is publicly available.
 
-The ECS cluster should be placed in the public net to allow free access to AWS services. SG for cluster instances should
-allow the same traffic that is needed for the tasks. In my case http for messages service and tcp with the port of the
-redis
-for redis.
+For the sake of **ECS** deployment, I deploy only the **messages service** and **Redis**.
 
-When using Docker Bridge, the tasks don't have their own SG, they share them with the ECS EC2 instances.
+### **Public Cluster**
 
-Because there is no need to make Redis public, in the SG for ECS EC2 instaces allow inbound traffic for redis only from
-the private
-ips of the public subnet, in my case it is 10.0.128/17, so all private ips in public subnets.
+I use a cluster with **EC2 ASG** and free **t3.micro** instances.
 
-##### Service Connect
+#### **Network**
 
-In my simplified deployment with just messages service and redis I used service connect feature to simplify connecting
-services.
+Use the **public network** for the cluster.
 
-To make it work enable service connect client and server mode for redis, choose task port for redis(the port mapping
-specified in
-task definition). Choose namespace for example the one that is auto created when creating the cluster, fill Discovery
-which is optional name for the service in cloud map,
-choose DNS name that will be used by clients to connect to the redis and choose the port.
-I chose the same one as in redis task definition.
+When using **Docker Bridge**, the tasks don't have their own **SG**, they share them with the **ECS EC2 instances**.
 
-For clients, in service definition you need to enable service connect client side only mode. In task definition in place
-in which you need to provide the ip or hostname of the redis service provide DNS name that was defined in service
-connect
-for the needed service.
+There is no need to make certain services accessible from the internet, for example, **Redis**. In the shared **SG** (
+the **ECS EC2** cluster one), allow inbound traffic for **Redis** only for **private IPv4** addresses from these
+networks. In my case, it is **10.0.128.0/17**.
 
-When using ECS service connect with task that use bridge networking mode, the SG for EC2 instances in the ECS cluster
-should allow inbound tcp traffic from upper dynamic port range that is 49152 - 65535.
+##### **Service Connect**
+
+**Service Connect** is an abstraction that can be used in **ECS** to connect services together. It fulfills the role of
+**service discovery**.
+
+For **Redis** (client and server mode):
+
+- Enable **client** and **server mode**.
+- Choose **namespace** for the **Service Connect**, this can be the one that is automatically created when the cluster
+  is created.
+- Configure the mapping.
+
+Mapping configuration has several fields:
+
+- **Port Alias**: The port that was defined in the task definition. It represents the connection to be exposed via *
+  *Service Connect**.
+- **Discovery**: An optional field, it will be used as a service name in **Cloud Map** (**Service discovery** is again a
+  wrapper for other services).
+- **DNS**: The most important field, this will be the **hostname** of this service in **Service Connect**, and other
+  services will use this to connect to this service.
+- **Port**: The port that is meant for this service. I chose the same port as in the task definition.
+
+For **clients** (**client mode**):
+
+- Enable **client mode**.
+- Choose **namespace** (the same as in **Redis** service configuration).
+- In application code, use the same **DNS name** as in the **Redis** configuration.
+
+When using **ECS Service Connect** with tasks that use **bridge networking mode**, the **SG** for **EC2 instances** in
+the **ECS cluster** must allow inbound **TCP** traffic from the upper dynamic port range, which is **49152 - 65535**.
+Otherwise, **Service Connect** will not work.
 
 ##### ECS-public-cluster-EC2-SG
 
 ```
-sgr-05be99a4f5e5cff55
-IPv4
-Custom TCP
-TCP
-6379
-10.0.128.0/17
-private ips in public subnet
-–
-sgr-078e57c38aaca6c54
-IPv4
-HTTP
-TCP
-80
-0.0.0.0/0
-client
-–
-sgr-00427ed8e81f6d727
-IPv4
-Custom TCP
-TCP
-49152 - 65535
-10.0.128.0/17
-dynamic ports for service connect
-–
-sgr-0a347469160b4cee1
-IPv4
-SSH
-TCP
-22
-<your public ip>
-my pc
+| Security Group ID                        | Protocol | Port Range           | CIDR Block      | Description                    | Notes                         |
+|------------------------------------------|----------|----------------------|-----------------|--------------------------------|-------------------------------|
+| sgr-05be99a4f5e5cff55                    | IPv4     | Custom TCP (TCP)     | 6379            | Private IPs in public subnet   |                               |
+| sgr-078e57c38aaca6c54                    | IPv4     | HTTP (TCP)           | 80              | Access from any client (0.0.0.0/0) |                               |
+| sgr-00427ed8e81f6d727                    | IPv4     | Custom TCP (TCP)     | 49152 - 65535   | Dynamic ports for service connect |                               |
+| sgr-0a347469160b4cee1                    | IPv4     | SSH (TCP)            | 22              | SSH access from my PC (specific IP) | `<your public IP>`          |
+
 ```
 
-### Redis Task definition
+### **Task Definitions**
 
-- [redis task definition json](./redis/redis-task-definition.json)
+**Task definitions** are blueprints for the deployment of containers. They are similar to the contents of a *
+*docker-compose** file.
 
-I want to deploy redis with users.acl, so that the redis client needs to use username and password. I also want to use
-custom redis.conf. Because of these two things we should somehow mount redis.conf and users.acl into docker container.
-This is hard to do in ECS task. To fulfil this requirement, the proper solution is to create custom docker image with
-those two files already copied with the use of Dockerfile. To change password or some setting, one would need to create
-new
-version of the image.
+Example task definition: [**redis task definition json**](./redis/redis-task-definition.json)
 
-#### Resources
+#### **Image**
 
-At most I could specify 2 vCPU and 0.905 GB for t3.micro (free-tier). The rest of the 1GB is probably needed by ECS
-agent
-container which runs on each ECS instance.
+My **Redis** requires a custom **redis.conf** and **user.acl** file for authentication. It is hard to mount these files
+into the container on startup of the task. The idiomatic approach is to build them into the image by using a custom *
+*Dockerfile**.
 
-#### Image
+When a change of password or some configuration is required, create a new image and upload it to **ECR**.
 
-Image can be loaded from public repositories or public or private ECR repo.
+#### **Resources**
 
-#### Network
+At most, I could specify **2 vCPU** and **0.905 GB** for **t3.micro** (free-tier). The rest of the **1GB** is probably
+needed by the **ECS agent container** that runs on each **ECS** instance.
 
-To make the task discoverable from public net, we need to use host type of bridge. awsvpc does not work, because it does
-not give public ips to the tasks, one would need to use NAT gateway, which costs money.
+#### **Network**
 
-Docker bridge requires specifying port on the host EC2 instance and docker container, typical stuff for docker.
+To make the task discoverable from the public network, use the **host** type of **bridge**. **awsvpc** does not work
+because it does not give public IPs to the tasks, and one would need to use a **NAT gateway**, which costs money.
 
-In theory network type Host could also be used, in practice we would get the same deployment type as in EC2 deployment.
+**Docker bridge** requires specifying ports on both the host **EC2 instance** and the **Docker container**—typical
+configuration for **Docker**.
 
-#### Storage
+In theory, the **network type Host** could also be used, but in practice, we would get the same deployment type as in *
+*EC2** deployment.
 
-To use storage to persist the data, one can use docker volume with driver local(you must use lower case otherwise your
-task will not boot without any logs) and Scope shared(so that when you restart the tasks, volume will not be created
-for each new task). One also needs to enable - use auto-provisioning option, to create volume file on running EC2
-instance
-if it is missing.
+#### **Storage**
 
-Of course you need to mount the file in the docker container to the proper directory that is required by the image.
+To use storage to persist data, one can use a **Docker volume** with the **driver** **local** (you must use lowercase,
+otherwise, your task will not boot without logs) and **Scope shared** (so that when you restart the tasks, the volume
+will not be created for each new task). One also needs to enable the **auto-provisioning** option to create a volume
+file on the running **EC2 instance** if it is missing.
 
-The file on the EC2 instance is located under /var/lib/docker/volumes. Naturally if the instance dies, data will be
-lost.
+Of course, the deployed application image needs to be properly configured for using the volume.
 
+The file on the **EC2 instance** is located under **/var/lib/docker/volumes**. Naturally, if the instance dies, data
+will be lost.
