@@ -167,7 +167,7 @@ To enable SSH access to instances in the **private subnet**, you need to create 
   so may impact high availability.
 - Steps for creating **ICE**:
     - Assign the **ICE** to your chosen **VPC** and **private subnet**.
-    - Create a **Security Group (SG)** for **ICE**, allowing inbound and outbound SSH traffic for the instances that
+    - Create a **Security Group (SG)** for **ICE**, allowing outbound SSH traffic for the instances that
       require **ICE** access.
     - Add the **ICE** security group as an inbound rule in the target instance's security group.
 
