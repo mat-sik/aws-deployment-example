@@ -498,7 +498,7 @@ Then make sure to:
 
 TLDR;
 
-1) `mkfs.ext4 /dev/nvme1n1` If volume is new, else do only 3, 4, 5
+1) `mkfs.ext4 /dev/nvme1n1` If volume is new, else do only 3, 4, 5, 6
 2) `mkdir -p /mnt/ebs/postgresql`
 3) `blkid` and copy UUID of `/dev/nvme1n1`
 4) `ID=<UUID>`
