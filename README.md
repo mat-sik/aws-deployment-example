@@ -125,8 +125,9 @@ necessary for properly setting up the **Eureka** server.
 ### **EC2** templates
 
 To avoid repetitive **EC2** instance configurations, create an **EC2** template for each service. When using an **Auto
-Scaling Group (ASG)**, avoid specifying network details such as a static **IPv4** address. If a service, such as **Redis
-**, requires a static **IPv4** address, it can be hardcoded into the configuration. However, this approach is suitable
+Scaling Group (ASG)**, avoid specifying network details such as a static **IPv4** address. If a service, such as
+**Redis**, requires a static **IPv4** address, it can be hardcoded into the configuration. However, this approach is
+suitable
 primarily for learning or testing purposes and is not ideal for scalable environments.
 
 ## **VPC**
@@ -137,6 +138,7 @@ possible.
 ### 1) Create custom **VPC**
 
 To enable DNS-based communication between **EC2** instances, you need to enable DNS hostnames for your **VPC**.
+Make sure that DNS resolution is also enabled.
 
 ### 2) Create private subnet and public subnet
 
@@ -158,8 +160,8 @@ To enable DNS-based communication between **EC2** instances, you need to enable 
 
 #### **Instance Connect Endpoint**
 
-To enable SSH access to instances in the **private subnet**, you need to create an **EC2 Instance Connect Endpoint (ICE)
-**.
+To enable SSH access to instances in the **private subnet**, you need to create an
+**EC2 Instance Connect Endpoint (ICE)**.
 
 - You can create the **ICE** in a single subnet and then use it across other subnets within the same **VPC**, but doing
   so may impact high availability.
@@ -180,8 +182,8 @@ Steps to create an **S3 Gateway Endpoint**:
 - Create the **S3 Gateway Endpoint** (`com.amazonaws.<region>.s3`) and assign it to your chosen **VPC**.
 - Add a route to the **private subnet's route table**, pointing to the **S3 Gateway Endpoint** as the target. The source
   should be the pre-created **AWS prefix list** for **S3** that is associated with the endpoint.
-- In the **Security Group (SG)** of the **EC2** instances that need to access **S3**, create an outbound rule allowing *
-  *HTTPS** traffic to the same prefix list used in the route table.
+- In the **Security Group (SG)** of the **EC2** instances that need to access **S3**, create an outbound rule allowing 
+  **HTTPS** traffic to the same prefix list used in the route table.
 - Create an **IAM Role** for **EC2** instances, granting them permission to read from **S3** (or additional permissions,
   if needed).
 
@@ -230,8 +232,8 @@ Remember to later remove the tar file
 
 Make the security group (SG) rules as strict as possible.
 
-- Every SG should include an **inbound rule** for **ICE** (EC2 Instance Connect Endpoint) and an **outbound rule** for *
-  *S3**.
+- Every SG should include an **inbound rule** for **ICE** (EC2 Instance Connect Endpoint) and an **outbound rule** for
+  **S3**.
 - For **Eureka** and **Redis**, use **custom TCP rules** with the appropriate ports.
 
 ### Eureka
@@ -405,16 +407,16 @@ Otherwise, **Service Connect** will not work.
 
 ### **Task Definitions**
 
-**Task definitions** are blueprints for the deployment of containers. They are similar to the contents of a *
-*docker-compose** file.
+**Task definitions** are blueprints for the deployment of containers. They are similar to the contents of a
+**docker-compose** file.
 
 Example task definition: [**redis task definition json**](./redis/redis-task-definition.json)
 
 #### **Image**
 
 My **Redis** requires a custom **redis.conf** and **user.acl** file for authentication. It is hard to mount these files
-into the container on startup of the task. The idiomatic approach is to build them into the image by using a custom *
-*Dockerfile**.
+into the container on startup of the task. The idiomatic approach is to build them into the image by using a custom
+**Dockerfile**.
 
 When a change of password or some configuration is required, create a new image and upload it to **ECR**.
 
@@ -431,8 +433,8 @@ because it does not give public IPs to the tasks, and one would need to use a **
 **Docker bridge** requires specifying ports on both the host **EC2 instance** and the **Docker container**—typical
 configuration for **Docker**.
 
-In theory, the **network type Host** could also be used, but in practice, we would get the same deployment type as in *
-*EC2** deployment.
+In theory, the **network type Host** could also be used, but in practice, we would get the same deployment type as in
+**EC2** deployment.
 
 #### **Storage**
 
