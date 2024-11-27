@@ -75,6 +75,7 @@ The behavior of the **AMI** will be customized using shell scripts provided as A
 The script should perform the following tasks:
 
 - Fetch the **Docker** image from **S3** (or **ECR**; however, **S3** is preferable for private subnets as it can be
+- Fetch the **Docker** image from **S3** (or **ECR**; however, **S3** is preferable for private subnets as it can be
   accessed for free using a gateway endpoint).
 - Load the image into **Docker**.
 - Generate the `docker-compose.yaml` file.
@@ -182,7 +183,7 @@ Steps to create an **S3 Gateway Endpoint**:
 - Create the **S3 Gateway Endpoint** (`com.amazonaws.<region>.s3`) and assign it to your chosen **VPC**.
 - Add a route to the **private subnet's route table**, pointing to the **S3 Gateway Endpoint** as the target. The source
   should be the pre-created **AWS prefix list** for **S3** that is associated with the endpoint.
-- In the **Security Group (SG)** of the **EC2** instances that need to access **S3**, create an outbound rule allowing 
+- In the **Security Group (SG)** of the **EC2** instances that need to access **S3**, create an outbound rule allowing
   **HTTPS** traffic to the same prefix list used in the route table.
 - Create an **IAM Role** for **EC2** instances, granting them permission to read from **S3** (or additional permissions,
   if needed).
@@ -388,7 +389,8 @@ Otherwise, **Service Connect** will not work.
 **Task definitions** are blueprints for the deployment of containers. They are similar to the contents of a
 **docker-compose** file.
 
-Example task definition: 
+Example task definition:
+
 - [**redis task definition json**](./redis/redis-task-definition.json)
 - [**messages task definition json**](./messages/messages-task-definition.json)
 
@@ -428,7 +430,9 @@ Of course, the deployed application image needs to be properly configured for us
 The file on the **EC2 instance** is located under **/var/lib/docker/volumes**. Naturally, if the instance dies, data
 will be lost.
 
-## Local docker compose .env files
+## Appendix
+
+### Local docker compose .env files
 
 messages/.env:
 
@@ -449,3 +453,70 @@ GATEWAY_PORT=8080
 MESSAGES_SERVICE_ID=messages
 EUREKA_HOSTNAME=discovery
 ```
+
+### **EBS** for postgres on **EC2**
+
+First of, you should start with the AMI with **docker**, **docker-compose** and **docker_boot.service** installed.
+
+Then make sure to:
+
+1) Create EBS volume in the same **AZ** in which your instance is located.
+    - It needs to be in the same **AZ**, otherwise you need to create snapshot and move it to the desired **AZ**.
+2) Attach it to some running instance under some directory.
+    - I chose `/dev/xvdbb` to be consistent with root volume which is `/dev/xvda`.
+    - Locate it with `lsblk`.
+    - For me it showed it under the name `/dev/nvme1n1` and not `/dev/xvdbb`, but when I searched it with
+      `ls /dev | grep xvd` it found it with the expected name `/dev/xvdbb`, but this is symlink to the `/dev/nvme1n1`.
+3) Check if volume has any file system with `file -s /dev/nvme1n1`
+    - if it does it will return something like:
+      `/dev/nvme1n1: Linux rev 1.0 ext4 filesystem data, UUID=76e95df2-a381-4586-a2d1-1021946d3494 (extents) (64bit) (large files) (huge files)`
+    - If it doesn't it will return something like: `/dev/nvme1n1: data`
+4) If volume doesn't have any file system. Create it with `mkfs.ext4 /dev/nvme1n1`
+5) Create directory for mount.
+    - I created it under `/mnt/ebs/postgresql` but any is good.
+    - `mkdir -p /mnt/ebs/postgresql`
+6) Mount the drive with `mount /dev/nvme1n1 /mnt/ebs/postgresql`
+7) Create **empty** directory for postgresql data, for example:
+    - `mkdir /mnt/ebs/postgresql/data`
+    - We cannot use the same directory from mounting, because ext4 automatically create `Lost+Found` directory and
+      postgres expects empty directory.
+8) If you reboot your instance, it won't mount the volume and you will need to do it again manually. To make it
+   automatic locate the volume with `blkid`
+    - For me it returned:
+        - /dev/nvme0n1p1: LABEL="/" UUID="70d0467a-2f9b-4795-88e2-ccfd3849bd93" BLOCK_SIZE="4096" TYPE="xfs" PARTLABEL="
+          Linux" PARTUUID="1de36676-cf9e-43ca-bbd1-b902e158566b"
+        - /dev/nvme0n1p128: SEC_TYPE="msdos" UUID="EE7C-01A6" BLOCK_SIZE="512" TYPE="vfat" PARTLABEL="EFI System
+          Partition" PARTUUID="a3e77220-94dc-4470-b4af-f1672d67006e"
+        - /dev/nvme0n1p127: PARTLABEL="BIOS Boot Partition" PARTUUID="bce2db45-b333-4662-8c37-c7d84f0c9ce4"
+        - /dev/nvme1n1: UUID="12e93b5f-f659-4f47-8c1f-0de741ca8eae" BLOCK_SIZE="4096" TYPE="ext4"
+9) Take the UUID of the desired volume and add the following entry to the the `/etc/fstab` for example with:
+    - run
+      `echo UUID=12e93b5f-f659-4f47-8c1f-0de741ca8eae  /mnt/ebs/postgresql  ext4  defaults,nofail  0  2 >> /etc/fstab`
+    - You can test if it works by:
+        - running `umount /mnt/ebs/postgresql` (if you use `/dev/nvme1n1` it won't work)
+        - and then `mount -a`
+
+TLDR;
+
+1) `mkfs.ext4 /dev/nvme1n1` If volume is new, else do only 3, 4, 5
+2) `mkdir -p /mnt/ebs/postgresql`
+3) `blkid` and copy UUID of `/dev/nvme1n1`
+4) `ID=<UUID>`
+5) `echo UUID=$ID  /mnt/ebs/postgresql  ext4  defaults,nofail  0  2 >> /etc/fstab`
+6) `mount -a`
+7) `mkdir /mnt/ebs/postgresql/data`
+
+I think these steps could be performed with a **bash** script, but I also think that after these steps are done, you can
+create AMI and reuse it. As long as the volume does not change, you should be good.
+
+#### How to use it with docker
+
+Just use the `/mnt/ebs/postgresql/data` directory as bind mount.
+
+The rest of the configuration is the same as in **EC2** deployment, in particular `user-data.txt` file in which you
+create
+`docker-compose.yaml` file that creates bind mount for mount directory.
+
+example script: [postgresql user-data](./postgresql/user-data.txt)
+
+Here for simplicity I use public subnet, to not have to play with S3.
