@@ -4,8 +4,8 @@
         {
             "name": "simp-messages",
             "image": "992382644961.dkr.ecr.eu-north-1.amazonaws.com/aws-deployment-example/simp-messages:latest",
-            "cpu": 2048,
-            "memory": 927,
+            "cpu": 1792,
+            "memory": 862,
             "memoryReservation": 819,
             "portMappings": [
                 {

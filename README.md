@@ -369,8 +369,15 @@ For **clients** (**client mode**):
 - In application code, use the same **DNS name** as in the **Redis** configuration.
 
 When using **ECS Service Connect** with tasks that use **bridge networking mode**, the **SG** for **EC2 instances** in
-the **ECS cluster** must allow inbound **TCP** traffic from the upper dynamic port range, which is **49152 - 65535**.
+the **ECS cluster** must allow inbound **TCP** traffic from the upper dynamic port range, which is **32768 - 65535**.
 Otherwise, **Service Connect** will not work.
+See [link](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html#service-connect-concepts-network)
+
+I am not sure why this range is valid, but experimentally I determined that it is.
+
+You need to reserve resources for proxy at least 256 CPU and 64MiB. If you expect more than 500 requests per second use
+512 CPU. If you expect 100 Service Connect services or 2000 tasks use 128 MiB. Using fargate has its own requirements.
+See: [link](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html#service-connect-concepts-proxy)
 
 ##### ECS-public-cluster-EC2-SG
 
@@ -379,9 +386,8 @@ Otherwise, **Service Connect** will not work.
 |------------------------------------------|----------|----------------------|-----------------|--------------------------------|-------------------------------|
 | sgr-05be99a4f5e5cff55                    | IPv4     | Custom TCP (TCP)     | 6379            | Private IPs in public subnet   |                               |
 | sgr-078e57c38aaca6c54                    | IPv4     | HTTP (TCP)           | 80              | Access from any client (0.0.0.0/0) |                               |
-| sgr-00427ed8e81f6d727                    | IPv4     | Custom TCP (TCP)     | 49152 - 65535   | Dynamic ports for service connect |                               |
+| sgr-00427ed8e81f6d727                    | IPv4     | Custom TCP (TCP)     | 32768 - 65535   | Dynamic ports for service connect |                               |
 | sgr-0a347469160b4cee1                    | IPv4     | SSH (TCP)            | 22              | SSH access from my PC (specific IP) | `<your public IP>`          |
-
 ```
 
 ### **Task Definitions**
@@ -406,6 +412,11 @@ When a change of password or some configuration is required, create a new image 
 
 At most, I could specify **2 vCPU** and **0.905 GB** for **t3.micro** (free-tier). The rest of the **1GB** is probably
 needed by the **ECS agent container** that runs on each **ECS** instance.
+
+Remember to reserve some capacity for Service Connect proxy. 2 vCPU - 256 CPU = 1.75 vCPU and 0.905 * 1024 - 0.64 MiB =
+862.72 MiB = 0.8425 GB I will pick lower bound so 0.842 GB
+
+See: [link](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html#service-connect-concepts-proxy)
 
 #### **Network**
 
@@ -520,3 +531,37 @@ create
 example script: [postgresql user-data](./postgresql/user-data.txt)
 
 Here for simplicity I use public subnet, to not have to play with S3.
+
+### **EBS** for postgres on **ECS**
+
+1) In task definition you want to select volume option - configure at deployment.
+2) Remember to specify mount points, this is the same as in [Task definition storage](#Storage)
+3) In service definition for the task, in volume section, configure the EBS volume, you will need to create and attach a
+   role that can perform actions on your behalf with policy **AmazonECSInfrastructureRolePolicyForVolumes**. Basically
+   you need to allow **ECS** service to create **EBS** volumes.
+
+Task definition for redis with EBS: [redis task definition for EBS](./redis/redis-task-definition-EBS.json)
+
+#### **EBS** infrastructure role for **ECS**
+
+1) Create a new custom trust policy with these contents:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAccessToECSForInfrastructureManagement",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+2) Attach **AmazonECSInfrastructureRolePolicyForVolumes** policy to it
+
+See [link](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ebs-volumes.html#ebs-volume-considerations)
