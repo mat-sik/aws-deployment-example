@@ -1,6 +1,6 @@
 # AWS Deployment Example
 
-This guide provides a comprehensive deployment strategy for **EC2** and **ECS** using **Docker** and AWS services.
+This project serves as a comprehensive deployment guide for **EC2** and **ECS** using **Docker** and AWS services.
 
 ## Deployment strategy using **EC2**
 
